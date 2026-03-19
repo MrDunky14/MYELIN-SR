@@ -1,0 +1,28 @@
+# Compiled Object files
+*.obj
+*.o
+*.a
+*.lib
+*.exp
+
+# Executables
+*.exe
+*.out
+*.app
+*.dll
+
+# Build directories
+bin/
+build/
+out/
+
+# Generated Test Output Images (To save repo space)
+data/output_1440p.png
+
+# Visual Studio files
+*.sln
+*.suo
+*.user
+*.vcxproj
+*.filters
+.vs/
