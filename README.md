@@ -56,6 +56,24 @@ cmake ..
 cmake --build . --config Release
 ```
 
+### 1.1 Build the ReShade Addon (No SDK Preinstalled)
+You can build `myelin_sr.addon64` even if you do not have the ReShade SDK locally.
+
+```bash
+mkdir build && cd build
+cmake .. -DBUILD_RESHADE_ADDON=ON -DRESHADE_FETCH_SDK=ON
+cmake --build . --config Release --target myelin_sr_addon
+```
+
+If you already downloaded ReShade SDK manually, point CMake to it:
+
+```bash
+cmake .. -DBUILD_RESHADE_ADDON=ON -DRESHADE_FETCH_SDK=OFF -DRESHADE_SDK_DIR=C:/path/to/reshade
+```
+
+Output DLL location:
+`build/Release/myelin_sr.addon64`
+
 ### 2. Standalone Benchmark Sandbox
 Run the compiled `dx12_benchmark.exe` to trigger a simulated 20-frame headless run. 
 Specify the preset model:

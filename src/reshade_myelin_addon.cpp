@@ -10,6 +10,7 @@
  */
 
 #include <reshade.hpp>
+#include <windows.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include <wrl.h>
@@ -17,6 +18,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <cstring>
 
 using Microsoft::WRL::ComPtr;
 using namespace reshade::api;
@@ -36,7 +38,7 @@ struct LayerConfig {
 };
 
 // ── Per-Device Engine State ──
-struct MyelinState {
+struct __declspec(uuid("8F26A57E-08B8-4AF9-B5DB-7A39D5C6DB8C")) MyelinState {
     bool initialized = false;
     bool enabled = true;
     
@@ -70,9 +72,10 @@ struct MyelinState {
 
 static void CALLBACK OnInitDevice(device* dev) {
     if (dev->get_api() != device_api::d3d12) return;
-    
-    auto& state = dev->create_private_data<MyelinState>();
-    state.device = (ID3D12Device*)dev->get_native();
+
+    auto* state = dev->create_private_data<MyelinState>();
+    if (state == nullptr) return;
+    state->device = (ID3D12Device*)dev->get_native();
     
     // Locate weight file relative to the game exe
     char exePath[MAX_PATH];
@@ -83,7 +86,7 @@ static void CALLBACK OnInitDevice(device* dev) {
     
     std::ifstream f(binPath, std::ios::binary | std::ios::ate);
     if (!f.is_open()) {
-        reshade::log_message(reshade::log_level::warning,
+        reshade::log::message(reshade::log::level::warning,
             "MYELIN-SR: Could not find myelin_engine_v2_quality.bin next to game exe");
         return;
     }
@@ -95,10 +98,10 @@ static void CALLBACK OnInitDevice(device* dev) {
     
     // Parse header
     uint32_t numLayers = *(uint32_t*)(data.data() + 8);
-    state.layers.resize(numLayers);
+    state->layers.resize(numLayers);
     size_t offset = 12;
     for (uint32_t i = 0; i < numLayers; i++) {
-        memcpy(&state.layers[i], data.data() + offset, sizeof(LayerDescriptor));
+        memcpy(&state->layers[i], data.data() + offset, sizeof(LayerDescriptor));
         offset += sizeof(LayerDescriptor);
     }
     
@@ -116,22 +119,22 @@ static void CALLBACK OnInitDevice(device* dev) {
         desc.Width = size; desc.Height = 1; desc.DepthOrArraySize = 1;
         desc.MipLevels = 1; desc.SampleDesc.Count = 1;
         desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        state.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE,
+        state->device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE,
             &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(res));
         void* mapped; (*res)->Map(0, nullptr, &mapped);
         memcpy(mapped, src, size); (*res)->Unmap(0, nullptr);
     };
-    
-    UploadBuffer(&state.ternaryBuf, data.data() + ternaryOff, scaleOff - ternaryOff);
-    UploadBuffer(&state.scaleBuf,   data.data() + scaleOff,   biasOff - scaleOff);
-    UploadBuffer(&state.biasBuf,    data.data() + biasOff,    fpOff - biasOff);
-    UploadBuffer(&state.fpBuf,      data.data() + fpOff,      (fileSize - 32) - fpOff);
+
+    UploadBuffer(&state->ternaryBuf, data.data() + ternaryOff, scaleOff - ternaryOff);
+    UploadBuffer(&state->scaleBuf,   data.data() + scaleOff,   biasOff - scaleOff);
+    UploadBuffer(&state->biasBuf,    data.data() + biasOff,    fpOff - biasOff);
+    UploadBuffer(&state->fpBuf,      data.data() + fpOff,      (fileSize - 32) - fpOff);
     
     // Load pre-compiled shader
     std::string csoPath = dir + "myelin_compute.cso";
     std::ifstream sf(csoPath, std::ios::binary | std::ios::ate);
     if (!sf.is_open()) {
-        reshade::log_message(reshade::log_level::warning, "MYELIN-SR: Could not find myelin_compute.cso");
+        reshade::log::message(reshade::log::level::warning, "MYELIN-SR: Could not find myelin_compute.cso");
         return;
     }
     size_t sFileSize = sf.tellg();
@@ -156,34 +159,35 @@ static void CALLBACK OnInitDevice(device* dev) {
     sigDesc.NumParameters = 2; sigDesc.pParameters = params;
     ComPtr<ID3DBlob> sigBlob;
     D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sigBlob, nullptr);
-    state.device->CreateRootSignature(0, sigBlob->GetBufferPointer(),
-        sigBlob->GetBufferSize(), IID_PPV_ARGS(&state.rootSig));
+    state->device->CreateRootSignature(0, sigBlob->GetBufferPointer(),
+        sigBlob->GetBufferSize(), IID_PPV_ARGS(&state->rootSig));
     
     // Create PSO
     D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.pRootSignature = state.rootSig;
+    psoDesc.pRootSignature = state->rootSig;
     psoDesc.CS = { sData.data(), sData.size() };
-    state.device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&state.pso));
+    state->device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&state->pso));
     
-    state.initialized = true;
-    reshade::log_message(reshade::log_level::info,
+    state->initialized = true;
+    reshade::log::message(reshade::log::level::info,
         ("MYELIN-SR: Loaded " + std::to_string(numLayers) + " layers, " +
          std::to_string(fileSize / 1024) + " KB").c_str());
 }
 
 static void CALLBACK OnDestroyDevice(device* dev) {
     if (dev->get_api() != device_api::d3d12) return;
-    
-    auto& state = dev->get_private_data<MyelinState>();
-    if (state.ternaryBuf) state.ternaryBuf->Release();
-    if (state.scaleBuf)   state.scaleBuf->Release();
-    if (state.biasBuf)    state.biasBuf->Release();
-    if (state.fpBuf)      state.fpBuf->Release();
-    if (state.featureA)   state.featureA->Release();
-    if (state.featureB)   state.featureB->Release();
-    if (state.rootSig)    state.rootSig->Release();
-    if (state.pso)        state.pso->Release();
-    if (state.srvHeap)    state.srvHeap->Release();
+
+    auto* state = dev->get_private_data<MyelinState>();
+    if (state == nullptr) return;
+    if (state->ternaryBuf) state->ternaryBuf->Release();
+    if (state->scaleBuf)   state->scaleBuf->Release();
+    if (state->biasBuf)    state->biasBuf->Release();
+    if (state->fpBuf)      state->fpBuf->Release();
+    if (state->featureA)   state->featureA->Release();
+    if (state->featureB)   state->featureB->Release();
+    if (state->rootSig)    state->rootSig->Release();
+    if (state->pso)        state->pso->Release();
+    if (state->srvHeap)    state->srvHeap->Release();
     
     dev->destroy_private_data<MyelinState>();
 }
@@ -197,9 +201,9 @@ static void CALLBACK OnPresent(command_queue* queue, swapchain* swapchain,
 {
     device* dev = swapchain->get_device();
     if (dev->get_api() != device_api::d3d12) return;
-    
-    auto& state = dev->get_private_data<MyelinState>();
-    if (!state.initialized || !state.enabled) return;
+
+    auto* state = dev->get_private_data<MyelinState>();
+    if (state == nullptr || !state->initialized || !state->enabled) return;
     
     command_list* cmd = queue->get_immediate_command_list();
     resource backbuffer = swapchain->get_current_back_buffer();
@@ -208,15 +212,15 @@ static void CALLBACK OnPresent(command_queue* queue, swapchain* swapchain,
     cmd->barrier(backbuffer, resource_usage::present, resource_usage::unordered_access);
     
     // Bind pipeline
-    cmd->bind_pipeline(pipeline_stage::compute_shader, { (uint64_t)state.pso });
+    cmd->bind_pipeline(pipeline_stage::compute_shader, pipeline{ reinterpret_cast<uint64_t>(state->pso) });
     
     // Dispatch each layer
     resource_desc bb_desc = dev->get_resource_desc(backbuffer);
     uint32_t width = (uint32_t)bb_desc.texture.width;
     uint32_t height = bb_desc.texture.height;
     
-    for (size_t i = 0; i < state.layers.size(); i++) {
-        auto& layer = state.layers[i];
+    for (size_t i = 0; i < state->layers.size(); i++) {
+        const auto& layer = state->layers[i];
         
         LayerConfig config = {};
         config.InputWidth = width; config.InputHeight = height;
@@ -233,8 +237,8 @@ static void CALLBACK OnPresent(command_queue* queue, swapchain* swapchain,
         config.ActivationType = (layer.type == 0) ? 1 : 0;
         config.IsResidual = 0;
         
-        cmd->push_constants(shader_stage::compute_shader, { (uint64_t)state.rootSig },
-            0, sizeof(LayerConfig) / 4, &config);
+        cmd->push_constants(shader_stage::compute, pipeline_layout{ reinterpret_cast<uint64_t>(state->rootSig) },
+            0, 0, sizeof(LayerConfig) / 4, &config);
         
         cmd->dispatch((width + 15) / 16, (height + 15) / 16, 1);
     }
@@ -242,7 +246,7 @@ static void CALLBACK OnPresent(command_queue* queue, swapchain* swapchain,
     // Transition back
     cmd->barrier(backbuffer, resource_usage::unordered_access, resource_usage::present);
     
-    state.frameCount++;
+    state->frameCount++;
 }
 
 // ========================================================================= //
@@ -252,8 +256,9 @@ static void CALLBACK OnPresent(command_queue* queue, swapchain* swapchain,
 static void CALLBACK OnOverlay(effect_runtime* runtime) {
     device* dev = runtime->get_device();
     if (dev->get_api() != device_api::d3d12) return;
-    
-    auto& state = dev->get_private_data<MyelinState>();
+
+    auto* state = dev->get_private_data<MyelinState>();
+    if (state == nullptr) return;
     
     // ImGui overlay
     // Note: ReShade provides ImGui context automatically

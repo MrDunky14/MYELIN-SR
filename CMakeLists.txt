@@ -54,19 +54,44 @@ add_custom_command(TARGET dx12_benchmark POST_BUILD
 # Target 2: ReShade Addon DLL (optional)
 # ════════════════════════════════════════
 option(BUILD_RESHADE_ADDON "Build ReShade addon DLL" OFF)
+option(RESHADE_FETCH_SDK "Auto-download ReShade SDK when missing" ON)
 
 if(BUILD_RESHADE_ADDON)
     # ReShade SDK must be available
     set(RESHADE_SDK_DIR "${CMAKE_SOURCE_DIR}/external/reshade" CACHE PATH "Path to ReShade SDK")
-    
+
     if(NOT EXISTS "${RESHADE_SDK_DIR}/include/reshade.hpp")
-        message(WARNING "ReShade SDK not found at ${RESHADE_SDK_DIR}. Skipping addon build.")
-    else()
+        if(RESHADE_FETCH_SDK)
+            include(FetchContent)
+            message(STATUS "ReShade SDK not found at ${RESHADE_SDK_DIR}. Fetching from GitHub...")
+            FetchContent_Declare(
+                reshade_sdk
+                GIT_REPOSITORY https://github.com/crosire/reshade.git
+                GIT_TAG main
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_MakeAvailable(reshade_sdk)
+
+            if(EXISTS "${reshade_sdk_SOURCE_DIR}/include/reshade.hpp")
+                set(RESHADE_SDK_DIR "${reshade_sdk_SOURCE_DIR}" CACHE PATH "Path to ReShade SDK" FORCE)
+                message(STATUS "Using fetched ReShade SDK at ${RESHADE_SDK_DIR}")
+            else()
+                message(WARNING "Fetched ReShade repo but could not find include/reshade.hpp. Skipping addon build.")
+            endif()
+        else()
+            message(WARNING "ReShade SDK not found at ${RESHADE_SDK_DIR}. Set RESHADE_SDK_DIR or enable RESHADE_FETCH_SDK.")
+        endif()
+    endif()
+
+    if(EXISTS "${RESHADE_SDK_DIR}/include/reshade.hpp")
         add_library(myelin_sr_addon SHARED
             src/reshade_myelin_addon.cpp
         )
         target_include_directories(myelin_sr_addon PRIVATE ${RESHADE_SDK_DIR}/include)
         target_link_libraries(myelin_sr_addon PRIVATE ${DX12_LIBS})
+        target_compile_definitions(myelin_sr_addon PRIVATE
+            UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX
+        )
         set_target_properties(myelin_sr_addon PROPERTIES
             OUTPUT_NAME "myelin_sr"
             SUFFIX ".addon64"
