@@ -4,20 +4,40 @@
 *.a
 *.lib
 *.exp
+*.pdb
+*.ilk
 
-# Executables
+# Executables & Binaries
 *.exe
 *.out
 *.app
 *.dll
+*.addon64
+*.cso
+
+# Only force-track the specific precompiled release shader we want people to have
+!src/myelin_compute.cso
 
 # Build directories
 bin/
 build/
 out/
+.vs/
+.cache/
 
-# Generated Test Output Images (To save repo space)
+# PyTorch / Python
+__pycache__/
+*.pyc
+*.pt
+*.pth
+outputs/*.pt
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Generated Test Output Images
 data/output_1440p.png
+data/cyberpunk_temporal/
 
 # Visual Studio files
 *.sln
@@ -26,3 +46,22 @@ data/output_1440p.png
 *.vcxproj
 *.filters
 .vs/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Training checkpoints (too large for git)
+outputs/*.pt
+outputs/*.pth
+
+# Keep the exported binary weights
+!outputs/myelin_engine_v2.bin
+
+# Kaggle notebooks
+kaggle/*.ipynb
+
+# OS files
+Thumbs.db
+.DS_Store

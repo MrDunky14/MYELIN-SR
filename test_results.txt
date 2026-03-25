@@ -1,0 +1,10 @@
+T1 performance: PASS | shape=[1, 3, 128, 128] params=8742 deploy=10.6KB sparsity=25.5%
+T1 balanced: PASS | shape=[1, 3, 128, 128] params=39320 deploy=37.6KB sparsity=24.9%
+T1 quality: PASS | shape=[1, 3, 128, 128] params=39488 deploy=37.7KB sparsity=24.8%
+T1 ultra: PASS | shape=[1, 3, 128, 128] params=92256 deploy=82.7KB sparsity=25.1%
+T2 gradients: PASS | 62/62 params have gradients
+T3 ternary: PASS | unique_values=[-1, 0, 1]
+T4 sleep_consolidation: PASS
+T5 metrics: PASS | psnr_ident=100dB psnr_noisy=25.4dB ssim_ident=1.0000
+T6 loss: PASS | l1=0.9539 has_grad=True
+T7 fpsan_layers: 21 FPSANConv2d modules

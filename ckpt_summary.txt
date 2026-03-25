@@ -1,0 +1,6 @@
+    epoch_50: epoch=50   best_psnr=28.65dB  config={}
+   epoch_100: epoch=100  best_psnr=29.15dB  config={}
+   epoch_150: epoch=150  best_psnr=29.15dB  config={}
+   epoch_200: epoch=200  best_psnr=29.16dB  config={}
+        best: epoch=180  best_psnr=29.16dB  config={'scale': 2, 'quality': 'quality'}
+  deploy.bin: 20.3 KB

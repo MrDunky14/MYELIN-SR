@@ -1,0 +1,35 @@
+=== MYELIN-SR Training Output Review ===
+Best checkpoint: epoch 180, PSNR = 29.16 dB
+
+--- PSNR Progression ---
+epoch_050:  28.65 dB  (from checkpoint)
+epoch_100:  29.15 dB  (from checkpoint)
+epoch_150:  29.15 dB  (from checkpoint)
+epoch_200:  29.16 dB  (from checkpoint)
+  Gain ep50->100:  +0.50 dB
+  Gain ep100->150: +0.00 dB  << PLATEAU
+  Gain ep150->200: +0.01 dB  << PLATEAU
+
+--- Phase Gates ---
+Gate 1.1 valid_output:  PASS (loaded ok)
+Gate 1.2 beats_bicubic: FAIL  (need 30.3, have 29.16)
+Gate 1.3 beats_lanczos: FAIL  (need 30.5, have 29.16)
+Gate 1.4 matches_edsr:  FAIL  (need 33.0, have 29.16)
+
+--- Model Stats ---
+Parameters:   39,488
+Deploy size:  37.7 KB
+Sparsity:     26.1%
+
+Avg stiffness (after 180 epochs + sleep): 1.0000
+Max stiffness: 1.0000
+Min stiffness: 1.0000
+
+--- Diagnosis ---
+STATUS: Training stalled in texture plateau (28-29 dB range)
+Root cause candidates:
+  1. Homeostatic LR may have settled too low too early
+  2. ternary threshold delta too wide -- weights not differentiating
+  3. Need more data (Flickr2K + DIV2K together = 3x more signals)
+  4. Cosine annealing + homeostatic LR conflict at epoch 100+
+Recommended fix: See next steps below

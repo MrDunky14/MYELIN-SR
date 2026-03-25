@@ -123,9 +123,14 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID, uint groupIndex : SV_Gro
         float voltageDiff = pixels[i] - clusterAvgVoltage;
         int weight = 0;
             
-        if (dist_sq < 0.6f) weight = 1; 
-        else if (voltageDiff > 0.03f && dist_sq < 1.1f) weight = 1; 
-        else if (voltageDiff < -0.03f && dist_sq > 0.5f) weight = -1; 
+        // Eliminate the geometric dead zone overlapping 0.5f boundaries
+        if (dist_sq < 0.6f) {
+            weight = 1; 
+        } else {
+            if (voltageDiff > 0.02f && dist_sq < 1.5f) weight = 1; 
+            else if (voltageDiff < -0.02f && dist_sq >= 0.5f) weight = -1; 
+            else weight = 0;
+        }
 
         // Extract the original color for blending
         int px = clamp(int(texCoord.x) - 1 + (i%3), 0, width-1);
@@ -149,7 +154,9 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID, uint groupIndex : SV_Gro
 
     // --- THE SPIKE-TO-RGB MATHEMATICS ---
     float biologicalDivisor = float(activeSynapses) - (float(inhibitorySynapses) * 0.25f);
-    if (biologicalDivisor < 0.1f) biologicalDivisor = max(1.0f, float(activeSynapses));
+    
+    // Soft absolute bound ensures High-Inhibition clusters don't crush luminous elements
+    if (biologicalDivisor < 0.2f) biologicalDivisor = 0.2f;
 
     float3 scaledVoltage = float3(
         (rawTernarySumR * scalar) / biologicalDivisor,
