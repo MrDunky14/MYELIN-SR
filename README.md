@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/API-DirectX_12-blue.svg">
   <img src="https://img.shields.io/badge/Language-HLSL_5.1%2B-blueviolet.svg">
   <img src="https://img.shields.io/badge/Platform-Windows_11-lightgrey.svg">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg">
+  <img src="https://img.shields.io/badge/License-GPLv3-green.svg">
 </div>
 
 <br/>
@@ -12,6 +12,14 @@
 MYELIN-SR is a real-time neural upscaler designed for entry-level gaming GPUs (e.g., GTX 1650). It achieves AI-driven upscaling without relying on tensor cores (DLSS) or matrix math units (XeSS). 
 
 Instead, it pioneers a **multiplication-free ternary architecture** (`weights = {-1, 0, 1}`). By dropping all heavy floating-point multipliers, the network evaluates entirely via ultra-fast integer addition and subtraction, executing seamlessly on any standard GPU ALU via HLSL compute shaders.
+
+## License
+
+This project is licensed under **GNU General Public License v3.0 (GPLv3)**.
+
+We have released this under GPLv3 because we believe that breakthroughs in hardware efficiency should belong to the gaming community, not be locked behind proprietary silicon.
+
+See [LICENSE](LICENSE) for the full legal text and [NOTICE.md](NOTICE.md) for attribution requirements.
 
 ---
 
