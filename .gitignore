@@ -69,5 +69,6 @@ Thumbs.db
 tools/dxc/
 outputs/parity_v3/
 
- outputs/bench_540p/
+outputs/bench_540p/
 
+outputs/bench_720p/
