@@ -167,4 +167,10 @@ def export_parity_bundle(out_dir: Path, in_w: int = 64, in_h: int = 64):
 
 
 if __name__ == "__main__":
-    export_parity_bundle(Path("outputs/parity_v3"))
+    import argparse
+    parser = argparse.ArgumentParser(description="Export Myelin v3 Parity and Benchmark Bundles")
+    parser.add_argument("--width", type=int, default=64, help="Input low-res width")
+    parser.add_argument("--height", type=int, default=64, help="Input low-res height")
+    parser.add_argument("--out-dir", type=str, default="outputs/parity_v3", help="Output directory")
+    args = parser.parse_args()
+    export_parity_bundle(Path(args.out_dir), in_w=args.width, in_h=args.height)
