@@ -65,3 +65,7 @@ kaggle/*.ipynb
 # OS files
 Thumbs.db
 .DS_Store
+ 
+tools/dxc/
+outputs/parity_v3/
+
