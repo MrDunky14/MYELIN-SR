@@ -72,3 +72,8 @@ outputs/parity_v3/
 outputs/bench_540p/
 
 outputs/bench_720p/
+outputs/trained_dense/
+outputs/trained_ternary/
+data/Set5/
+data/Set14/
+data/train_hr/

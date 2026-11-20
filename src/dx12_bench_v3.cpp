@@ -14,6 +14,9 @@
 #include <string>
 #include <vector>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../include/stb_image_write.h"
+
 using Microsoft::WRL::ComPtr;
 
 #pragma comment(lib, "d3d12.lib")
@@ -82,7 +85,9 @@ static float HalfToFloat(uint16_t h) {
 
 class RooflineBench {
 public:
-    void RunAll(const std::string& dir, int warmups, int iters) {
+    void RunAll(const std::string& dir, int warmups, int iters, bool saveGpuPng = false) {
+        m_saveGpuPng = saveGpuPng;
+        m_workDir = dir;
         InitDevice();
         LoadBundle(dir);
         CreateRootSignature();
@@ -118,6 +123,8 @@ private:
     HANDLE m_fenceEvent = nullptr;
     uint64_t m_fenceVal = 1;
     bool m_nativeFp16 = false;
+    bool m_saveGpuPng = false;
+    std::string m_workDir;
 
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12Resource> m_ternaryBuf, m_denseFp32Buf, m_denseFp16Buf, m_scaleBuf, m_biasBuf;
@@ -449,6 +456,31 @@ private:
             for (size_t i = 0; i < nElems; ++i)
                 maxErr = std::max(maxErr, std::abs((double)gpuF[i] - (double)m_expectedHr[i]));
         }
+
+        if (m_saveGpuPng) {
+            std::string saveName = "";
+            if (v.name.find("6. Ternary OC8-Vec2") != std::string::npos) saveName = "gpu_ternary_fp16.png";
+            else if (v.name.find("7. Dense OC8-Vec2") != std::string::npos) saveName = "gpu_dense_fp16.png";
+
+            if (!saveName.empty()) {
+                std::string outPath = m_workDir + "/" + saveName;
+                std::vector<uint8_t> rgbImg(m_outW * m_outH * 3);
+                const uint16_t* gpuH = reinterpret_cast<const uint16_t*>(mapped);
+                const float* gpuF = reinterpret_cast<const float*>(mapped);
+                for (uint32_t y = 0; y < m_outH; ++y) {
+                    for (uint32_t x = 0; x < m_outW; ++x) {
+                        for (uint32_t c = 0; c < 3; ++c) {
+                            float val = v.useFp16 ? HalfToFloat(gpuH[(c * m_outH + y) * m_outW + x])
+                                                  : gpuF[(c * m_outH + y) * m_outW + x];
+                            val = std::clamp(val, 0.0f, 1.0f);
+                            rgbImg[(y * m_outW + x) * 3 + c] = (uint8_t)(val * 255.0f + 0.5f);
+                        }
+                    }
+                }
+                stbi_write_png(outPath.c_str(), (int)m_outW, (int)m_outH, 3, rgbImg.data(), (int)(m_outW * 3));
+                std::cout << "  [Saved GPU PNG] " << outPath << "\n";
+            }
+        }
         m_readbackBuf->Unmap(0, nullptr);
 
         double tol = v.useFp16 ? 2e-2 : 1e-4;
@@ -477,9 +509,18 @@ private:
 
 int main(int argc, char** argv) {
     try {
-        std::string dir = (argc > 1) ? argv[1] : "outputs/bench_540p";
+        std::string dir = "outputs/bench_540p";
+        bool savePng = false;
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+            if (arg == "--save-gpu-png") {
+                savePng = true;
+            } else if (arg[0] != '-') {
+                dir = arg;
+            }
+        }
         RooflineBench bench;
-        bench.RunAll(dir, 15, 50);
+        bench.RunAll(dir, 15, 50, savePng);
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "FATAL: " << e.what() << "\n";
